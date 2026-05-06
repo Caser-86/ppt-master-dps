@@ -34,14 +34,15 @@ def main() -> None:
     )
 
     parser = argparse.ArgumentParser(
-        description='PPT Master - SVG to PPTX Tool (Office Compatibility Mode)',
+        description='PPT Master - SVG to PPTX/DPS Tool (Office Compatibility Mode)',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=f'''
 Examples:
-    %(prog)s examples/ppt169_demo -s final    # Default: main pptx -> exports/, SVG snapshot + svg_output -> backup/<ts>/
+    %(prog)s examples/ppt169_demo -s final    # Default: main dps -> exports/, SVG snapshot + svg_output -> backup/<ts>/
     %(prog)s examples/ppt169_demo --only native   # Only native shapes version
     %(prog)s examples/ppt169_demo --only legacy   # Only SVG image version
     %(prog)s examples/ppt169_demo -o out.pptx     # Explicit path (SVG ref -> out_svg.pptx)
+    %(prog)s examples/ppt169_demo -o out.dps      # Output as .dps directly
 
     # Disable transition / change transition effect
     %(prog)s examples/ppt169_demo -t none
@@ -101,6 +102,9 @@ Recorded narration:
     parser.add_argument('-f', '--format', type=str,
                         choices=list(CANVAS_FORMATS.keys()), default=None,
                         help='Specify canvas format')
+    parser.add_argument('-e', '--ext', type=str,
+                        choices=['pptx', 'dps'], default='dps',
+                        help='Output file format extension (default: dps)')
     parser.add_argument('-q', '--quiet', action='store_true', help='Quiet mode')
 
     parser.add_argument('--no-compat', action='store_true',
@@ -207,6 +211,7 @@ Recorded narration:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
     backup_dir: Path | None = None
+    output_ext = args.ext
     if args.output:
         output_base = Path(args.output)
         native_path = output_base
@@ -215,11 +220,11 @@ Recorded narration:
     else:
         exports_dir = project_path / "exports"
         exports_dir.mkdir(parents=True, exist_ok=True)
-        native_path = exports_dir / f"{project_name}_{timestamp}.pptx"
+        native_path = exports_dir / f"{project_name}_{timestamp}.{output_ext}"
 
         backup_dir = project_path / "backup" / timestamp
         backup_dir.mkdir(parents=True, exist_ok=True)
-        legacy_path = backup_dir / f"{project_name}_svg.pptx"
+        legacy_path = backup_dir / f"{project_name}_svg.{output_ext}"
 
     native_path.parent.mkdir(parents=True, exist_ok=True)
     legacy_path.parent.mkdir(parents=True, exist_ok=True)
@@ -271,7 +276,7 @@ Recorded narration:
     # --- Native shapes version (primary) ---
     if gen_native:
         if verbose:
-            print("PPT Master - SVG to PPTX Tool")
+            print(f"PPT Master - SVG to {output_ext.upper()} Tool")
             print("=" * 50)
             print(f"  Project path: {project_path}")
             print(f"  SVG directory: {native_source_dir}")
@@ -292,7 +297,7 @@ Recorded narration:
             if gen_native:
                 print()
                 print("-" * 50)
-            print("PPT Master - SVG to PPTX Tool (SVG Reference)")
+            print(f"PPT Master - SVG to {output_ext.upper()} Tool (SVG Reference)")
             print("=" * 50)
             print(f"  Project path: {project_path}")
             print(f"  SVG directory: {legacy_source_dir}")
