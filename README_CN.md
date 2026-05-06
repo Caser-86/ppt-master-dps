@@ -42,6 +42,8 @@
 
 > **动画** —— 导出的 deck 支持**页间转场**和**页内元素入场动画**，输出为真正的 OOXML 动画（不是嵌入视频）。默认进入页面后元素按顺序自动级联入场，无需点击；在 PowerPoint 和 Keynote 中原生播放，无需额外工具。详见 [转场与动画使用指南 →](./docs/zh/animations.md)。
 
+> **DPS 格式支持** —— 默认同时生成 `.dps`（WPS Office）和 `.pptx`（Microsoft PowerPoint）两种格式。使用 `--only-format dps` 或 `--only-format pptx` 可只生成单一格式。WPS Office 用户无需任何转换步骤即可获得原生 `.dps` 文件。
+
 > **旁白与视频** —— 把演讲者备注按页生成语音旁白（默认 `edge-tts`，也可配置云端 TTS 获得高质量音色），把音频嵌回 PPTX，再用 PowerPoint 自带"导出视频"产出带旁白和转场的 MP4，全程无需第三方工具。详见 [音频旁白与视频导出 →](./docs/zh/audio-narration.md)。
 >
 > **声音复刻** —— 用 ElevenLabs / MiniMax / Qwen / CosyVoice 复刻出你自己的声音（或在授权前提下复刻演讲者的声音），让整份 deck 用 *你的声音* 念出来。在 provider 控制台复刻一次，把得到的 `voice_id` 传进来，PPT Master 就会用这个音色逐页朗读备注并嵌入回 PPTX。详见 [使用复刻音色 →](./docs/zh/audio-narration.md#使用复刻音色)。

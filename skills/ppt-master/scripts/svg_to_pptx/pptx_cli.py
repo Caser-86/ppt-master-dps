@@ -38,11 +38,12 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=f'''
 Examples:
-    %(prog)s examples/ppt169_demo -s final    # Default: main dps -> exports/, SVG snapshot + svg_output -> backup/<ts>/
-    %(prog)s examples/ppt169_demo --only native   # Only native shapes version
-    %(prog)s examples/ppt169_demo --only legacy   # Only SVG image version
-    %(prog)s examples/ppt169_demo -o out.pptx     # Explicit path (SVG ref -> out_svg.pptx)
-    %(prog)s examples/ppt169_demo -o out.dps      # Output as .dps directly
+    %(prog)s examples/ppt169_demo -s final    # Default: generate both .dps and .pptx
+    %(prog)s examples/ppt169_demo --only-format dps   # Only generate .dps
+    %(prog)s examples/ppt169_demo --only-format pptx  # Only generate .pptx
+    %(prog)s examples/ppt169_demo --only native       # Only native shapes version
+    %(prog)s examples/ppt169_demo --only legacy       # Only SVG image version
+    %(prog)s examples/ppt169_demo -o out.dps          # Explicit path (use .dps extension)
 
     # Disable transition / change transition effect
     %(prog)s examples/ppt169_demo -t none
@@ -102,9 +103,9 @@ Recorded narration:
     parser.add_argument('-f', '--format', type=str,
                         choices=list(CANVAS_FORMATS.keys()), default=None,
                         help='Specify canvas format')
-    parser.add_argument('-e', '--ext', type=str,
-                        choices=['pptx', 'dps'], default='dps',
-                        help='Output file format extension (default: dps)')
+    parser.add_argument('--only-format', type=str,
+                        choices=['pptx', 'dps'], default=None,
+                        help='Output only specified format (default: generate both .dps and .pptx)')
     parser.add_argument('-q', '--quiet', action='store_true', help='Quiet mode')
 
     parser.add_argument('--no-compat', action='store_true',
@@ -210,24 +211,21 @@ Recorded narration:
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
+    output_formats = ['dps', 'pptx'] if args.only_format is None else [args.only_format]
+
     backup_dir: Path | None = None
-    output_ext = args.ext
     if args.output:
         output_base = Path(args.output)
+        output_ext = output_base.suffix.lstrip('.')
+        output_formats = [output_ext]
         native_path = output_base
         stem = output_base.stem
-        legacy_path = output_base.parent / f"{stem}_svg{output_base.suffix}"
+        legacy_path = output_base.parent / f"{stem}_svg.{output_ext}"
     else:
         exports_dir = project_path / "exports"
         exports_dir.mkdir(parents=True, exist_ok=True)
-        native_path = exports_dir / f"{project_name}_{timestamp}.{output_ext}"
-
         backup_dir = project_path / "backup" / timestamp
         backup_dir.mkdir(parents=True, exist_ok=True)
-        legacy_path = backup_dir / f"{project_name}_svg.{output_ext}"
-
-    native_path.parent.mkdir(parents=True, exist_ok=True)
-    legacy_path.parent.mkdir(parents=True, exist_ok=True)
 
     verbose = not args.quiet
 
@@ -251,79 +249,112 @@ Recorded narration:
     transition = args.transition if args.transition != 'none' else None
     animation = args.animation if args.animation != 'none' else None
 
-    # svg_files is per-product (native vs legacy may now read different
-    # directories); everything else is shared.
-    shared_kwargs = dict(
-        canvas_format=canvas_format,
-        verbose=verbose,
-        transition=transition,
-        transition_duration=args.transition_duration,
-        auto_advance=args.auto_advance,
-        use_compat_mode=not args.no_compat,
-        notes=notes,
-        enable_notes=enable_notes,
-        animation=animation,
-        animation_duration=args.animation_duration,
-        animation_stagger=args.animation_stagger,
-        animation_trigger=args.animation_trigger,
-        narration_audio=narration_audio,
-        use_narration_timings=use_narration_timings,
-        narration_padding=args.narration_padding,
-    )
-
     success = True
+    generated_files: list[str] = []
 
-    # --- Native shapes version (primary) ---
-    if gen_native:
-        if verbose:
-            print(f"PPT Master - SVG to {output_ext.upper()} Tool")
-            print("=" * 50)
-            print(f"  Project path: {project_path}")
-            print(f"  SVG directory: {native_source_dir}")
-            print(f"  Output file: {native_path}")
-            print()
+    for fmt in output_formats:
+        if args.output is None:
+            native_path = exports_dir / f"{project_name}_{timestamp}.{fmt}"
+            legacy_path = backup_dir / f"{project_name}_svg.{fmt}"
+        else:
+            native_path = output_base
+            legacy_path = output_base.parent / f"{stem}_svg.{output_ext}"
 
-        ok = create_pptx_with_native_svg(
-            output_path=native_path,
-            use_native_shapes=True,
-            svg_files=native_files,
-            **shared_kwargs,
-        )
-        success = success and ok
+        native_path.parent.mkdir(parents=True, exist_ok=True)
+        legacy_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # --- SVG image reference version ---
-    if gen_legacy:
-        if verbose:
-            if gen_native:
+        # --- Native shapes version (primary) ---
+        if gen_native:
+            if verbose:
+                if len(output_formats) > 1:
+                    print(f"\n[{fmt.upper()}] PPT Master - SVG to {fmt.upper()} Tool")
+                else:
+                    print(f"PPT Master - SVG to {fmt.upper()} Tool")
+                print("=" * 50)
+                print(f"  Project path: {project_path}")
+                print(f"  SVG directory: {native_source_dir}")
+                print(f"  Output file: {native_path}")
                 print()
-                print("-" * 50)
-            print(f"PPT Master - SVG to {output_ext.upper()} Tool (SVG Reference)")
-            print("=" * 50)
-            print(f"  Project path: {project_path}")
-            print(f"  SVG directory: {legacy_source_dir}")
-            print(f"  Output file: {legacy_path}")
-            print()
 
-        ok = create_pptx_with_native_svg(
-            output_path=legacy_path,
-            use_native_shapes=False,
-            svg_files=legacy_files,
-            **shared_kwargs,
-        )
-        success = success and ok
+            ok = create_pptx_with_native_svg(
+                output_path=native_path,
+                use_native_shapes=True,
+                svg_files=native_files,
+                verbose=verbose,
+                canvas_format=canvas_format,
+                transition=transition,
+                transition_duration=args.transition_duration,
+                auto_advance=args.auto_advance,
+                use_compat_mode=not args.no_compat,
+                notes=notes,
+                enable_notes=enable_notes,
+                animation=animation,
+                animation_duration=args.animation_duration,
+                animation_stagger=args.animation_stagger,
+                animation_trigger=args.animation_trigger,
+                narration_audio=narration_audio,
+                use_narration_timings=use_narration_timings,
+                narration_padding=args.narration_padding,
+            )
+            success = success and ok
+            if ok:
+                generated_files.append(str(native_path))
 
-        if ok and backup_dir is not None:
-            svg_output_src = project_path / "svg_output"
-            if svg_output_src.is_dir():
-                svg_output_dst = backup_dir / "svg_output"
-                try:
-                    shutil.copytree(svg_output_src, svg_output_dst)
-                    if verbose:
-                        print(f"  svg_output backup: {svg_output_dst}")
-                except Exception as exc:
-                    if verbose:
-                        print(f"  [warn] svg_output backup skipped: {exc}")
-            elif verbose:
-                print(f"  [info] svg_output/ not found, backup skipped")
+        # --- SVG image reference version ---
+        if gen_legacy:
+            if verbose:
+                if gen_native:
+                    print()
+                    print("-" * 50)
+                print(f"PPT Master - SVG to {fmt.upper()} Tool (SVG Reference)")
+                print("=" * 50)
+                print(f"  Project path: {project_path}")
+                print(f"  SVG directory: {legacy_source_dir}")
+                print(f"  Output file: {legacy_path}")
+                print()
+
+            ok = create_pptx_with_native_svg(
+                output_path=legacy_path,
+                use_native_shapes=False,
+                svg_files=legacy_files,
+                verbose=verbose,
+                canvas_format=canvas_format,
+                transition=transition,
+                transition_duration=args.transition_duration,
+                auto_advance=args.auto_advance,
+                use_compat_mode=not args.no_compat,
+                notes=notes,
+                enable_notes=enable_notes,
+                animation=animation,
+                animation_duration=args.animation_duration,
+                animation_stagger=args.animation_stagger,
+                animation_trigger=args.animation_trigger,
+                narration_audio=narration_audio,
+                use_narration_timings=use_narration_timings,
+                narration_padding=args.narration_padding,
+            )
+            success = success and ok
+            if ok:
+                generated_files.append(str(legacy_path))
+
+            if ok and backup_dir is not None:
+                svg_output_src = project_path / "svg_output"
+                if svg_output_src.is_dir():
+                    svg_output_dst = backup_dir / "svg_output"
+                    try:
+                        shutil.copytree(svg_output_src, svg_output_dst)
+                        if verbose:
+                            print(f"  svg_output backup: {svg_output_dst}")
+                    except Exception as exc:
+                        if verbose:
+                            print(f"  [warn] svg_output backup skipped: {exc}")
+                elif verbose:
+                    print(f"  [info] svg_output/ not found, backup skipped")
+
+    if verbose and generated_files:
+        print()
+        print(f"Generated {len(generated_files)} file(s):")
+        for f in generated_files:
+            print(f"  - {f}")
 
     sys.exit(0 if success else 1)
