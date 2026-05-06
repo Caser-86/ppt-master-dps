@@ -2,16 +2,17 @@
 name: ppt-master
 description: >
   AI-driven multi-format SVG content generation system. Converts source documents
-  (PDF/DOCX/URL/Markdown) into high-quality SVG pages and exports to PPTX through
-  multi-role collaboration. Use when user asks to "create PPT", "make presentation",
+  (PDF/DOCX/URL/Markdown) into high-quality SVG pages and exports to PPTX/DPS through
+  multi-role collaboration. Supports both Microsoft PowerPoint (.pptx) and WPS Office 
+  (.dps) formats. Use when user asks to "create PPT", "make presentation",
   "生成PPT", "做PPT", "制作演示文稿", or mentions "ppt-master".
 ---
 
 # PPT Master Skill
 
-> AI-driven multi-format SVG content generation system. Converts source documents into high-quality SVG pages through multi-role collaboration and exports to PPTX.
+> AI-driven multi-format SVG content generation system. Converts source documents into high-quality SVG pages through multi-role collaboration and exports to PPTX/DPS.
 
-**Core Pipeline**: `Source Document → Create Project → Template Option → Strategist → [Image_Generator] → Executor → Post-processing → Export`
+**Core Pipeline**: `Source Document → Create Project → Template Option → Strategist → [Image_Generator] → Executor → Post-processing → Export (PPTX + DPS)`
 
 > [!CAUTION]
 > ## 🚨 Global Execution Discipline (MANDATORY)
@@ -56,7 +57,7 @@ description: >
 | `${SKILL_DIR}/scripts/svg_quality_checker.py` | SVG quality check |
 | `${SKILL_DIR}/scripts/total_md_split.py` | Speaker notes splitting |
 | `${SKILL_DIR}/scripts/finalize_svg.py` | SVG post-processing (unified entry) |
-| `${SKILL_DIR}/scripts/svg_to_pptx.py` | Export to PPTX |
+| `${SKILL_DIR}/scripts/svg_to_pptx.py` | Export to PPTX/DPS (generates both .dps and .pptx by default) |
 | `${SKILL_DIR}/scripts/update_spec.py` | Propagate a `spec_lock.md` color / font_family change across all generated SVGs |
 
 For complete tool documentation, see `${SKILL_DIR}/scripts/README.md`.
@@ -76,6 +77,7 @@ For complete tool documentation, see `${SKILL_DIR}/scripts/README.md`.
 | `create-template` | `workflows/create-template.md` | Standalone template creation workflow |
 | `verify-charts` | `workflows/verify-charts.md` | Chart coordinate calibration — run after SVG generation if the deck contains data charts |
 | `visual-edit` | `workflows/visual-edit.md` | Browser-based visual editor for fine-grained edits — run only when the user explicitly requests it after export |
+| `export-to-dps` | `workflows/export-to-dps.md` | Export to WPS Office .dps format — generates both .dps and .pptx by default |
 
 ---
 
@@ -314,14 +316,21 @@ python3 ${SKILL_DIR}/scripts/total_md_split.py <project_path>
 python3 ${SKILL_DIR}/scripts/finalize_svg.py <project_path>
 ```
 
-**Step 7.3** — Export PPTX (embeds speaker notes by default):
+**Step 7.3** — Export to PPTX/DPS (embeds speaker notes by default):
 ```bash
 python3 ${SKILL_DIR}/scripts/svg_to_pptx.py <project_path>
-# Output:
-#   exports/<project_name>_<timestamp>.pptx           ← main native pptx (reads svg_output/, high fidelity)
-#   backup/<timestamp>/<project_name>_svg.pptx        ← SVG preview pptx (reads svg_final/)
-#   backup/<timestamp>/svg_output/                    ← Executor SVG source backup
+# Output (default: generates both formats):
+#   exports/<project_name>_<timestamp>.dps              ← WPS Office format
+#   exports/<project_name>_<timestamp>.pptx             ← Microsoft PowerPoint format
+#   backup/<timestamp>/<project_name>_svg.pptx          ← SVG preview pptx (reads svg_final/)
+#   backup/<timestamp>/svg_output/                      ← Executor SVG source backup
+#
+# Single format options:
+#   --only-format dps    # Generate only .dps
+#   --only-format pptx   # Generate only .pptx
 ```
+
+> **DPS Format**: By default, PPT Master generates both `.dps` (WPS Office) and `.pptx` (Microsoft PowerPoint) files. WPS Office is widely used in Chinese enterprises and government. The `.dps` format uses the same OOXML structure as `.pptx`, ensuring full compatibility. Use `--only-format` to generate a single format when needed.
 
 > The two products now read from different sources by design: native pptx
 > consumes `svg_output/` so the converter can preserve high-fidelity primitives
@@ -374,10 +383,12 @@ Before switching roles, **MUST first read** the corresponding reference file. Ou
 | Image layout specification | `references/image-layout-spec.md` |
 | SVG image embedding | `references/svg-image-embedding.md` |
 | Icon library | `templates/icons/README.md` |
+| DPS export workflow | `workflows/export-to-dps.md` |
 
 ---
 
 ## Notes
 
 - Local preview: `python3 -m http.server -d <project_path>/svg_final 8000`
+- **DPS format**: Generated alongside `.pptx` by default for WPS Office compatibility
 - **Troubleshooting**: on generation issues (layout overflow, export errors, blank images, etc.), check `docs/faq.md` for known solutions

@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """PPT Master - SVG to PPTX/DPS Tool (thin wrapper).
 
-Delegates to the svg_to_pptx package. Kept for CLI backward compatibility:
-    python3 scripts/svg_to_pptx.py <project_path> -s final
-    python3 scripts/svg_to_pptx.py <project_path> -s final -e dps
-    python3 scripts/svg_to_pptx.py <project_path> -s final -e pptx
+Delegates to the svg_to_pptx package. Generates both .dps and .pptx by default.
+
+Usage:
+    python3 scripts/svg_to_pptx.py <project_path> -s final              # Both .dps + .pptx
+    python3 scripts/svg_to_pptx.py <project_path> -s final --only-format dps   # Only .dps
+    python3 scripts/svg_to_pptx.py <project_path> -s final --only-format pptx  # Only .pptx
 """
 
 import sys
